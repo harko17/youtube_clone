@@ -8,7 +8,7 @@ Future<void> main() async {
 
   await Supabase.initialize(
     url: "https://oejwazbjlcsayyzpknmg.supabase.co",
-    anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9landhemJqbGNzYXl5enBrbm1nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTkyMTAxNzUsImV4cCI6MjAzNDc4NjE3NX0.SIDsFvHI-qTUKRjFyjxzi_540Bl089j3r0rcL6yyKwQ",
+    anonKey: "YOUR_API_KEY OR ANON_KEY",
   );
 
   runApp(MyApp());
