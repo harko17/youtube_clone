@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:youtube/home%20screen/base_screen.dart';
 
 import 'package:youtube/home%20screen/notification_screen.dart';
-import 'package:youtube/home%20screen/profile_screen.dart';
+import 'package:youtube/home%20screen/profile.dart';
 import 'package:youtube/home%20screen/signIN_screen.dart';
 import 'package:youtube/home%20screen/search_screen.dart';
+import 'package:youtube/home%20screen/users.dart';
+import 'package:youtube/main.dart';
+import 'package:youtube/toUpload/UploadVideo.dart';
 
 
 
@@ -12,7 +15,7 @@ import 'package:youtube/home%20screen/search_screen.dart';
 
 bool userIs=false;
 class HomeScreen extends StatefulWidget {
-
+  const HomeScreen({super.key});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -22,6 +25,14 @@ class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
 
   PageController _pageController = PageController();
+  Widget currentPage = Database();
+  final PageStorageBucket bucket = PageStorageBucket();
+
+  @override
+  void initState() {
+    _currentIndex = 0;
+    super.initState();
+  }
 
   @override
   void dispose() {
@@ -32,6 +43,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void onTabTapped(int index) {
     setState(() {
       _currentIndex = index;
+
     });
     _pageController.animateToPage(index,
         duration: Duration(milliseconds: 300), curve: Curves.easeInOut);
@@ -39,9 +51,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   final List<Widget> _children = [
     Database(),
-    SearchPage(),
+    Users(),
+    VideoUploadScreen(),
     NotificationsPage(),
-    userIs==true?ProfilePage():ProfilePage2(),
+    userIs==true?ProfilePageNew():ProfilePage2(),
   ];
 
 
@@ -49,15 +62,12 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
 
     return Scaffold(
-      appBar: appbar(),
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _children,
-      ),
-
+      appBar: appbar(context),
+      body:
+      PageStorage(bucket: bucket, child: currentPage),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
-        onTap: onTabTapped,
+
         type: BottomNavigationBarType.fixed,
         items: [
           BottomNavigationBarItem(
@@ -65,8 +75,12 @@ class _HomeScreenState extends State<HomeScreen> {
             label: 'Home',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.search),
-            label: 'Search',
+            icon: Icon(Icons.people),
+            label: 'Users',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.add),
+            label: 'Add',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.notifications),
@@ -77,11 +91,47 @@ class _HomeScreenState extends State<HomeScreen> {
             label: 'Profile',
           ),
         ],
+        onTap: (int index) => _showPage(index),
       ),
     );
   }
+  void _showPage(int index) {
+    setState(() {
+      switch (index) {
+        case 0:
+          currentPage = Database();
+          _currentIndex = 0;
+          break;
+        case 1:
+          currentPage = Users();
+          _currentIndex = 1;
+          break;
+        case 2:
+          if(supabase.auth.currentUser==null)
+            {
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content : Text("Please Sign In")));
+            }
+          else
+            {
+              currentPage = VideoUploadScreen();
+              _currentIndex = 2;
+              break;
+            }
+
+
+        case 3:
+          currentPage = NotificationsPage();
+          _currentIndex = 3;
+          break;
+        case 4:
+          currentPage = userIs==true?ProfilePageNew():ProfilePage2();
+          _currentIndex = 4;
+          break;
+      }
+    });
+  }
 }
- appbar()
+ appbar(BuildContext context)
 {
   return  AppBar(
     leading: Padding(
@@ -101,7 +151,7 @@ class _HomeScreenState extends State<HomeScreen> {
         icon: const Icon(Icons.notifications),
         tooltip: 'Notifications',
         onPressed: () {
-          // handle the press
+
         },
       ),
 
@@ -109,10 +159,10 @@ class _HomeScreenState extends State<HomeScreen> {
         icon: const Icon(Icons.search),
         tooltip: 'Search',
         onPressed: () {
-          // handle the press
+          Navigator.of(context).push(MaterialPageRoute(builder: (context)=>SearchPage()));
         },
       ),
     ],
-    title: Text('YouTube',style: TextStyle(fontWeight: FontWeight.bold),),
+    title: Text('GRIND',style: TextStyle(fontWeight: FontWeight.bold,fontFamily: "Play",),),
   );
 }

@@ -66,6 +66,8 @@ class _AuthPageState extends State<AuthPage> {
         setState(() {
           userIs=true;
           _message = 'Signed in successfully';
+          Navigator.of(context).pushReplacement(MaterialPageRoute(
+              builder: (context) => HomeScreen()));
         });
         // Navigate to the main screen
 
