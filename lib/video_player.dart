@@ -24,6 +24,7 @@ class VideoPlayerScreen extends StatefulWidget {
   final bool isLiked;
   final int id;
   final String created_at;
+  final List commentId;
 
   VideoPlayerScreen({
     required this.videoUrl,
@@ -36,6 +37,7 @@ class VideoPlayerScreen extends StatefulWidget {
     required this.isLiked,
     required this.id,
     required this.created_at,
+    required this.commentId,
   });
 
   @override
@@ -44,12 +46,14 @@ class VideoPlayerScreen extends StatefulWidget {
 
 bool _commentTap = false;
 
+
 class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   late VideoPlayerController _videoPlayerController;
   ChewieController? _chewieController;
 
   @override
   void initState() {
+
     super.initState();
     _videoPlayerController = VideoPlayerController.network(widget.videoUrl)
       ..initialize().then((_) {
@@ -78,8 +82,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(0.0)),
       ),
-      context: (context), builder: (context) => CommentSectionScreen(id: widget.id),);
+      context: (context), builder: (context) => CommentSectionScreen(id: widget.id,commentId:widget.commentId==null?[]:widget.commentId),);
   }
+
 
 
   Future<List<CurrentUser>> fetchCurrentOwner() async {
@@ -168,8 +173,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                       children: <Widget>[
 
                         IconButton(onPressed: (){
-                          if(supabase.auth.currentUser!=null)
-                            Navigator.of(context).push(MaterialPageRoute(builder: (context)=>ChatPage(userId: supabase.auth.currentUser!.id, receiverId: owner.userID)));
+                          //if(supabase.auth.currentUser!=null)
+                            //Navigator.of(context).push(MaterialPageRoute(builder: (context)=>ChatPage(userId: supabase.auth.currentUser!.id, receiverId: owner.userID)));
                         }, icon: Icon(Icons.message_outlined)),
                         ElevatedButton(
 
@@ -216,7 +221,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
                               setState(() {
                                 fetchUsers();
-                                fetchCurrentUsers();
+                                fetchCurrentUsers(supabase.auth.currentUser!.id.toString());
 
                               });
                             }
@@ -371,7 +376,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                           children: [
                             Padding(
                               padding: const EdgeInsets.only(left: 18,top: 10),
-                              child: Text("Comments 14",style: TextStyle(fontSize: 18),),
+                              child: Text("Comments ${widget.commentId.length}",style: TextStyle(fontSize: 18),),
                             ),
                             SizedBox(),
                             ListTile(
@@ -418,7 +423,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     );
   }
 }
- Future<void> _getUdata=_getUserData();
+
+Future<void> _getUdata=_getUserData();
 
 Future<void> _getUserData() async {
   final response = await Supabase.instance.client

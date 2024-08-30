@@ -45,6 +45,7 @@ dependencies:
   share_plus:
   uni_links:
   socket_io_client:
+  intl:
 
 dev_dependencies:
   flutter_test:

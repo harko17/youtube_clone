@@ -23,8 +23,31 @@ class _DatabaseState extends State<Database> {
   }
 
   String n = "";
+  void _incrementViews(int videoId,int views) async {
 
-  Future<void> fetchTodos() async {
+      try {
+        // Update the view count for the specific video by incrementing the `views` column by 1
+        final response = await supabase
+            .from('videos')
+            .update({
+          'views':  views+1,
+        })
+            .eq('id', videoId)
+            .single();
+
+        if (response != null ) {
+          print('Views updated successfully');
+        } else {
+          print('Error updating views: ${response}');
+        }
+      } catch (e) {
+        print('Error: $e');
+      }
+    }
+
+
+
+    Future<void> fetchTodos() async {
     try {
       final response = await supabase.from('videos').select();
 
@@ -73,6 +96,7 @@ class _DatabaseState extends State<Database> {
                               isLikedGlobal=true;
                             else
                               isLikedGlobal=false;
+                            _incrementViews(todo['id'],todo['views']);
                             Navigator.of(context).push(MaterialPageRoute(
                                 builder: (context) => VideoPlayerScreen(
                                       videoUrl: todo['videoUrl'].toString(),
@@ -85,6 +109,7 @@ class _DatabaseState extends State<Database> {
                                       isLiked: isLikedGlobal,
                                       id: todo['id'],
                                       created_at:todo['created_at'],
+                                      commentId: todo['commentId']==null?[]:todo['commentId'],
                                     )));
                           },
                           child: Image.network(

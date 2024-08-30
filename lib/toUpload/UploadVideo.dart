@@ -1,6 +1,4 @@
 import 'dart:io';
-
-import 'package:cupertino_icons/cupertino_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -19,6 +17,7 @@ class _VideoUploadScreenState extends State<VideoUploadScreen> {
   File? _videoFile;
   File? _thumbnailFile;
   VideoPlayerController? _videoPlayerController;
+  double _progress = 0.0;
 
   Future<void> _pickVideo() async {
     final pickedFile = await _picker.pickVideo(source: ImageSource.gallery);
@@ -42,69 +41,135 @@ class _VideoUploadScreenState extends State<VideoUploadScreen> {
       });
     }
   }
-  bool vU=false,tU=false,dU=false;
-  Future<void> _uploadVideo() async {
-    if (_videoFile == null || _thumbnailFile == null) return;
 
+  Future<void> _uploadVideo() async {
     final title = _titleController.text;
     final description = _descriptionController.text;
-    final docPath=DateTime.now().millisecondsSinceEpoch;
 
-    // Upload video to Supabase Storage
-    final videoResponse = await Supabase.instance.client.storage
-        .from('videos')
-        .upload('${docPath}.mp4', _videoFile!).whenComplete(() {
-          setState(() {
-            vU=true;
-          });
-    });
-
-    if (videoResponse == null) {
-      print('Error uploading video: ${videoResponse.toString()}');
+    if (title.isEmpty) {
+      _showAlert('Title is required');
       return;
     }
 
-    // Upload thumbnail to Supabase Storage
-    final thumbnailResponse = await Supabase.instance.client.storage
-        .from('thumbnail')
-        .upload('${docPath}.jpg', _thumbnailFile!).whenComplete((){
-          setState(() {
-            tU=true;
-          });
-    });
-
-    if (thumbnailResponse == null) {
-      print('Error uploading thumbnail: ${thumbnailResponse.toString()}');
+    if (title.length > 50) {
+      _showAlert('Title cannot be more than 50 characters');
       return;
     }
 
-    final videoUrl = Supabase.instance.client.storage.from('videos').getPublicUrl('${docPath}.mp4');
-    String tt=videoUrl;
-
-    final thumbnailUrl = Supabase.instance.client.storage.from('thumbnail').getPublicUrl('${docPath}.jpg');
-
-    // Insert video metadata into Supabase table
-    final insertResponse = await Supabase.instance.client
-        .from('videos')
-        .insert({
-      'title': title,
-      'description': description,
-      'videoUrl': videoUrl,
-      'thumbnailUrl': thumbnailUrl,
-      'views': 0,
-    }).whenComplete(() {
-      dU=true;
-    });
-
-    if (insertResponse.error != null) {
-      print('Error inserting video metadata: ${insertResponse.error!.message}');
+    if (description.isEmpty) {
+      _showAlert('Description is required');
       return;
     }
 
+    if (description.length > 500) {
+      _showAlert('Description cannot be more than 500 characters');
+      return;
+    }
 
+    if (_videoFile == null) {
+      _showAlert('Please select a video');
+      return;
+    }
 
-    print('Video uploaded successfully!');
+    if (_thumbnailFile == null) {
+      _showAlert('Please select a thumbnail');
+      return;
+    }
 
+    final docPath = DateTime.now().millisecondsSinceEpoch;
+
+    try {
+      setState(() {
+        _progress = 0.25;
+      });
+
+      // Upload video to Supabase Storage
+      final videoResponse = await Supabase.instance.client.storage
+          .from('videos')
+          .upload('${docPath}.mp4', _videoFile!);
+
+      if (videoResponse == null) {
+        throw Exception('Error uploading video');
+      }
+
+      setState(() {
+        _progress = 0.5;
+      });
+
+      // Upload thumbnail to Supabase Storage
+      final thumbnailResponse = await Supabase.instance.client.storage
+          .from('thumbnail')
+          .upload('${docPath}.jpg', _thumbnailFile!);
+
+      if (thumbnailResponse == null) {
+        throw Exception('Error uploading thumbnail');
+      }
+
+      setState(() {
+        _progress = 0.75;
+      });
+
+      final videoUrl = Supabase.instance.client.storage
+          .from('videos')
+          .getPublicUrl('${docPath}.mp4');
+      final thumbnailUrl = Supabase.instance.client.storage
+          .from('thumbnail')
+          .getPublicUrl('${docPath}.jpg');
+
+      // Insert video metadata into Supabase table
+      final insertResponse =
+      await Supabase.instance.client.from('videos').insert({
+        'title': title,
+        'description': description,
+        'videoUrl': videoUrl,
+        'thumbnailUrl': thumbnailUrl,
+        'views': 0,
+      });
+
+      if (insertResponse.error != null) {
+        throw Exception(
+            'Error inserting video metadata: ${insertResponse.error!.message}');
+      }
+
+      setState(() {
+        _progress = 1.0;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Video uploaded successfully!')),
+      );
+
+      Future.delayed(Duration(seconds: 2), () {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => HomeScreen()),
+        );
+      });
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error uploading video')),
+      );
+    }
+  }
+
+  void _showAlert(String message) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Alert'),
+          content: Text(message),
+          actions: [
+            TextButton(
+              child: Text('OK'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -118,63 +183,156 @@ class _VideoUploadScreenState extends State<VideoUploadScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-
       body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            children: [
-              TextField(
-                controller: _titleController,
-                decoration: InputDecoration(labelText: 'Title'),
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildTextField(
+              controller: _titleController,
+              labelText: 'Video Title',
+              hintText: 'Enter video title...',
+              icon: Icons.title,
+              maxLength: 50,
+            ),
+            SizedBox(height: 20),
+            _buildTextField(
+              controller: _descriptionController,
+              labelText: 'Description',
+              hintText: 'Enter video description...',
+              icon: Icons.description,
+              maxLength: 500,
+            ),
+            SizedBox(height: 20),
+            _buildPreviewSection(),
+            SizedBox(height: 30),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _buildSelectButton(
+                  icon: Icons.video_library,
+                  label: 'Select Video',
+                  onPressed: _pickVideo,
+                ),
+                _buildSelectButton(
+                  icon: Icons.image,
+                  label: 'Select Thumbnail',
+                  onPressed: _pickThumbnail,
+                ),
+              ],
+            ),
+            SizedBox(height: 30),
+            LinearProgressIndicator(value: _progress),
+            SizedBox(height: 30),
+            Center(
+              child: ElevatedButton.icon(
+                icon: Icon(Icons.upload, size: 24),
+                label: Text('Upload Video', style: TextStyle(fontSize: 18)),
+                style: ElevatedButton.styleFrom(
+                  padding: EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                  backgroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(30.0),
+                  ),
+                ),
+                onPressed: _uploadVideo,
               ),
-              TextField(
-                controller: _descriptionController,
-                decoration: InputDecoration(labelText: 'Description'),
-              ),
-              SizedBox(height: 16.0),
-              _videoFile == null
-                  ? Text('No video selected.')
-                  : _videoPlayerController!.value.isInitialized
-                  ? AspectRatio(
-                aspectRatio: _videoPlayerController!.value.aspectRatio,
-                child: VideoPlayer(_videoPlayerController!),
-              )
-                  : CircularProgressIndicator(),
-              SizedBox(height: 16.0),
-              _thumbnailFile == null
-                  ? Text('No thumbnail selected.')
-                  : Image.file(_thumbnailFile!),
-              SizedBox(height: 16.0),
-              ElevatedButton(
-                onPressed: _pickVideo,
-                child: Text('Select Video'),
-              ),
-              SizedBox(height: 16.0),
-              ElevatedButton(
-                onPressed: _pickThumbnail,
-                child: Text('Select Thumbnail'),
-              ),
-              SizedBox(height: 16.0),
-              ElevatedButton(
-                onPressed: (){
-                  _uploadVideo;
-                  if(vU && tU && dU)
-                 {
-                   setState(() {
-                     {
-                       ScaffoldMessenger.of(context).showSnackBar(
-                         SnackBar(content: Text('Video uploaded successfully!')),
-                       );
-                     }
-                   });
-                 }
-                },
-                child: Text('Upload Video'),
-              ),
-            ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String labelText,
+    required String hintText,
+    required IconData icon,
+    required int maxLength,
+  }) {
+    return TextField(
+      controller: controller,
+      maxLength: maxLength,
+      decoration: InputDecoration(
+        labelText: labelText,
+        hintText: hintText,
+        prefixIcon: Icon(icon),
+        filled: true,
+        fillColor: Colors.grey[100],
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(30.0),
+          borderSide: BorderSide.none,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPreviewSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _videoFile == null
+            ? GestureDetector(
+          onTap: _pickVideo,
+          child: Container(
+            height: 200,
+            decoration: BoxDecoration(
+              color: Colors.grey[300],
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Center(child: Text('No video selected')),
+          ),
+        )
+            : AspectRatio(
+          aspectRatio: _videoPlayerController!.value.aspectRatio,
+          child: VideoPlayer(_videoPlayerController!),
+        ),
+        SizedBox(height: 20),
+        _thumbnailFile == null
+            ? GestureDetector(
+          onTap: _pickThumbnail,
+          child: Container(
+            height: 150,
+            decoration: BoxDecoration(
+              color: Colors.grey[300],
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Center(child: Text('No thumbnail selected')),
+          ),
+        )
+            : ClipRRect(
+          borderRadius: BorderRadius.circular(10),
+          child: Image.file(_thumbnailFile!,
+              height: 150, width: double.infinity, fit: BoxFit.cover),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSelectButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onPressed,
+  }) {
+    return Center(
+      child: ElevatedButton.icon(
+        icon: Icon(icon, size: 24),
+        label: Flexible(
+          child: Text(
+            label,
+            style: TextStyle(fontSize: 16),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
           ),
         ),
+        style: ElevatedButton.styleFrom(
+          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(30.0),
+          ),
+        ),
+        onPressed: onPressed,
       ),
     );
   }

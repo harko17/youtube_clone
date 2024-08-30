@@ -11,18 +11,20 @@ class AuthPage extends StatefulWidget {
   @override
   _AuthPageState createState() => _AuthPageState();
 }
+
 bool _redirecting = false;
-late  StreamSubscription<AuthState> _authStateSubscription;
+late StreamSubscription<AuthState> _authStateSubscription;
 
 class _AuthPageState extends State<AuthPage> {
   final SupabaseClient _supabaseClient = Supabase.instance.client;
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   bool _isSignUp = false;
+  bool _obscurePassword = true; // To control password visibility
   String _message = '';
 
   Future<void> _signUp() async {
-    try{
+    try {
       final response = await _supabaseClient.auth.signUp(
         email: _emailController.text,
         password: _passwordController.text,
@@ -38,21 +40,21 @@ class _AuthPageState extends State<AuthPage> {
         });
       }
 
-      await supabase.from("users").insert([{
-        'dp': ' ',
-        'name' : ' ',
-
-        'phone' : ' ',
-      }]);
-    }
-    catch(error)
-    {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content : Text("User already exist")));
+      await supabase.from("users").insert([
+        {
+          'dp': ' ',
+          'name': ' ',
+          'phone': ' ',
+        }
+      ]);
+    } catch (error) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text("User already exists")));
     }
   }
 
   Future<void> _signIn() async {
-    try{
+    try {
       final response = await _supabaseClient.auth.signInWithPassword(
         email: _emailController.text,
         password: _passwordController.text,
@@ -64,55 +66,59 @@ class _AuthPageState extends State<AuthPage> {
         });
       } else {
         setState(() {
-          userIs=true;
+          userIs = true;
           _message = 'Signed in successfully';
-          Navigator.of(context).pushReplacement(MaterialPageRoute(
-              builder: (context) => HomeScreen()));
+          Navigator.of(context).pushReplacement(
+              MaterialPageRoute(builder: (context) => HomeScreen()));
         });
-        // Navigate to the main screen
-
-        Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => HomeScreen()));
       }
+    } catch (error) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text("Invalid login credentials")));
     }
-    catch(error)
-    {
-
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content : Text("Invalid login credentials")));
-    }
-
   }
+
   @override
   void initState() {
     _authStateSubscription = supabase.auth.onAuthStateChange.listen(
-          (data) {
+      (data) {
         if (_redirecting) return;
         final session = data.session;
         if (session != null) {
           _redirecting = true;
           setState(() async {
-            userIs=true;
+            userIs = true;
             _redirecting = false;
 
-            Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (context) =>  HomeScreen()));
-
+            Navigator.of(context).pushReplacement(
+                MaterialPageRoute(builder: (context) => HomeScreen()));
           });
         }
       },
       onError: (error) {
         if (error is AuthException) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content : Text(error.message)));
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text(error.message)));
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content : Text("An internal error occured")));
+          ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text("An internal error occurred")));
         }
       },
     );
     super.initState();
   }
 
+  bool _validateEmail(String email) {
+    return email.endsWith('@gg.in');
+  }
+
+  bool _validatePassword(String password) {
+    return RegExp(r'^\d{6}$').hasMatch(password); // Only 6 digits
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -122,6 +128,7 @@ class _AuthPageState extends State<AuthPage> {
               controller: _emailController,
               decoration: InputDecoration(
                 labelText: 'Email',
+                hintText: 'User@gg.in',
                 border: OutlineInputBorder(),
               ),
             ),
@@ -131,23 +138,45 @@ class _AuthPageState extends State<AuthPage> {
               decoration: InputDecoration(
                 labelText: 'Password',
                 border: OutlineInputBorder(),
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _obscurePassword ? Icons.visibility : Icons.visibility_off,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _obscurePassword = !_obscurePassword;
+                    });
+                  },
+                ),
               ),
-              obscureText: true,
+              obscureText: _obscurePassword,
+              keyboardType: TextInputType.number,
+              // Numeric keyboard
+              maxLength: 6, // Limit to 6 characters
             ),
             SizedBox(height: 16.0),
             ElevatedButton(
-              onPressed: _isSignUp ? _signUp : _signIn,
+              onPressed: () {
+                if (_validateEmail(_emailController.text) &&
+                    _validatePassword(_passwordController.text)) {
+                  _isSignUp ? _signUp() : _signIn();
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content: Text('Invalid email or password format'),
+                  ));
+                }
+              },
               child: Text(_isSignUp ? 'Sign Up' : 'Sign In'),
             ),
             TextButton(
               onPressed: () async {
                 setState(() {
                   _isSignUp = !_isSignUp;
-
                 });
-
               },
-              child: Text(_isSignUp ? 'Already have an account? Sign In' : 'Don\'t have an account? Sign Up'),
+              child: Text(_isSignUp
+                  ? 'Already have an account? Sign In'
+                  : 'Don\'t have an account? Sign Up'),
             ),
             SizedBox(height: 16.0),
             Text(_message, style: TextStyle(color: Colors.red)),
@@ -156,10 +185,6 @@ class _AuthPageState extends State<AuthPage> {
       ),
     );
   }
-  insertUser()
-  async {
 
-  }
+  insertUser() async {}
 }
-
-
