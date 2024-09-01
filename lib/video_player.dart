@@ -165,17 +165,18 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                     leading: CircleAvatar(
                       backgroundImage: NetworkImage(owner.dp),
                     ),
-                    title: Text(owner.name),
+                    title: Text(owner.name==currUserName?owner.name+" (Me)":owner.name),
                     subtitle: Text('${owner.followers.length} Followers'),
 
                     trailing: Wrap(
                       spacing: 12,
                       children: <Widget>[
-
+                        if(owner.name!=currUserName)
                         IconButton(onPressed: (){
                           //if(supabase.auth.currentUser!=null)
                             //Navigator.of(context).push(MaterialPageRoute(builder: (context)=>ChatPage(userId: supabase.auth.currentUser!.id, receiverId: owner.userID)));
                         }, icon: Icon(Icons.message_outlined)),
+                        if(owner.name!=currUserName)
                         ElevatedButton(
 
                           onPressed: () async {

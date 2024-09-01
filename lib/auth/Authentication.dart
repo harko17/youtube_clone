@@ -43,7 +43,7 @@ class _AuthPageState extends State<AuthPage> {
       await supabase.from("users").insert([
         {
           'dp': ' ',
-          'name': ' ',
+          'name': 'UserName',
           'phone': ' ',
         }
       ]);

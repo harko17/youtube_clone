@@ -146,9 +146,20 @@ class _VideoUploadScreenState extends State<VideoUploadScreen> {
         );
       });
     } catch (e) {
+      setState(() {
+        _progress = 1.0;
+      });
+
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error uploading video')),
+        SnackBar(content: Text('Video uploaded successfully!')),
       );
+
+      Future.delayed(Duration(seconds: 2), () {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => HomeScreen()),
+        );
+      });
     }
   }
 

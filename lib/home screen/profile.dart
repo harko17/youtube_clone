@@ -57,10 +57,14 @@ class _ProfilePageNewState extends State<ProfilePageNew> {
   @override
   void initState() {
     super.initState();
+
     _fetchMyVideos();
   }
 
   Future<void> _fetchMyVideos() async {
+    setState(() {
+      viewsSum=0;
+    });
     final currentUser = supabase.auth.currentUser;
     if (currentUser != null) {
       final response =
@@ -75,6 +79,7 @@ class _ProfilePageNewState extends State<ProfilePageNew> {
         });
       } else {
         print('Error fetching videos: ${response}');
+
       }
     }
   }
@@ -173,16 +178,24 @@ class _ProfilePageNewState extends State<ProfilePageNew> {
         .delete()
         .match({'id': messageId}).whenComplete(() => _fetchMyVideos());
 
-    if (response.error != null) {
-      print('Error deleting message: ${response.error!.message}');
-    } else {
-      setState(() {
-        _myVideos.removeWhere((message) => message['id'] == messageId);
-
-        listenForNewMessages();
+    if (response.isEmpty) {
+      print('Error deleting video: ${response}');
+      setState(() async {
+        viewsSum=0;
+        await _fetchMyVideos();
       });
+      // Refresh the video list and views after deletion
+
+    } else {
+      setState(() async {
+        viewsSum=0;
+       await _fetchMyVideos();
+      });
+      // Refresh the video list and views after deletion
+
     }
   }
+
   void listenForNewMessages() {
     final supabase = Supabase.instance.client;
 
@@ -194,6 +207,10 @@ class _ProfilePageNewState extends State<ProfilePageNew> {
       setState(() {
         _myVideos.addAll(data);
         _fetchMyVideos();// Add the new messages to your list
+      });
+      setState(() {
+        _myVideos = data;
+        viewsSum = _myVideos.fold(0, (total, video) => total + (video['views'] ?? 0));
       });
     });
   }
@@ -256,6 +273,7 @@ class _ProfilePageNewState extends State<ProfilePageNew> {
       print('Error: $e');
     }
   }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -310,7 +328,7 @@ class _ProfilePageNewState extends State<ProfilePageNew> {
                               ),
                             ),
                             Text(
-                              Cuser.email.isEmpty ? "" : Cuser.email,
+                               Cuser.email,
                               style: TextStyle(
                                 fontSize: 16.0,
                                 color: Colors.grey,
